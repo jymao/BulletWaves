@@ -17,12 +17,17 @@ public class Boss : MonoBehaviour {
     private Animator animate;
 
     private bool isNormalMode = true;
+    private bool canShoot = true;
+
+    public GameObject gameManager;
+    private GameManager gameScript;
 
 	// Use this for initialization
 	void Start () {
         animate = GetComponent<Animator>();
         maxHealthScale = healthBar.localScale.x;
         initBarPos = healthBar.position.x;
+        gameScript = gameManager.GetComponent<GameManager>();
 	}
 	
 	// Update is called once per frame
@@ -32,31 +37,10 @@ public class Boss : MonoBehaviour {
         {
             animate.SetBool("isDead", true);
         }
-
-        if(Input.GetKeyDown(KeyCode.Alpha1))
+        else
         {
-            StartCoroutine(FireStraight(1));
-        }
-        if (Input.GetKeyDown(KeyCode.Alpha2))
-        {
-            StartCoroutine(FireCurved(15, true));
-        }
-        if (Input.GetKeyDown(KeyCode.Alpha3))
-        {
-            StartCoroutine(FireCurved(10, false));
-        }
-        if (Input.GetKeyDown(KeyCode.Alpha4))
-        {
-            StartCoroutine(FirePathY());
-        }
-        if (Input.GetKeyDown(KeyCode.Alpha5))
-        {
-            StartCoroutine(FirePathX());
-        }
-        if (Input.GetKeyDown(KeyCode.Alpha6))
-        {
-            StartCoroutine(FireCircle(3));
-        }
+            animate.SetBool("isDead", false);
+        }   
         
 	}
 
@@ -65,9 +49,19 @@ public class Boss : MonoBehaviour {
         animate.enabled = b;
     }
 
+    public void ResetIdle(bool b)
+    {
+        animate.SetBool("resetBoss", b);
+    }
+
     public void SetIsNormalMode(bool b)
     {
         isNormalMode = b;
+    }
+
+    public void SetCanShoot(bool b)
+    {
+        canShoot = b;
     }
 
     public void increaseHealth(int amount)
@@ -113,6 +107,12 @@ public class Boss : MonoBehaviour {
             Player pScript = player.GetComponent<Player>();
             decreaseHealth(pScript.power);
         }
+        else if (other.tag == "PlayerBullet" && !isNormalMode)
+        {
+            GameObject player = GameObject.Find("Player");
+            Player pScript = player.GetComponent<Player>();
+            gameScript.UpdateScore(pScript.power);
+        }
     }
 
     /*-- attack patterns ------------------------------------- */
@@ -135,8 +135,11 @@ public class Boss : MonoBehaviour {
             {
                 direction = Quaternion.AngleAxis(-angleSlice, new Vector3(0, 0, 1)) * direction;
 
-                GameObject currBullet = (GameObject)Instantiate(bullet, spawnLoc, Quaternion.identity);
-                currBullet.GetComponent<Rigidbody2D>().velocity = new Vector2(direction.x, direction.y) * bulletSpeed;
+                if (canShoot)
+                {
+                    GameObject currBullet = (GameObject)Instantiate(bullet, spawnLoc, Quaternion.identity);
+                    currBullet.GetComponent<Rigidbody2D>().velocity = new Vector2(direction.x, direction.y) * bulletSpeed;
+                }
             }
 
             //reset direction for next wave
@@ -169,18 +172,21 @@ public class Boss : MonoBehaviour {
             {
                 direction = Quaternion.AngleAxis(-angleSlice, new Vector3(0, 0, 1)) * direction;
 
-                GameObject currBullet = (GameObject)Instantiate(bullet, spawnLoc, Quaternion.identity);
-                currBullet.GetComponent<Rigidbody2D>().velocity = new Vector2(direction.x, direction.y) * bulletSpeed;
+                if (canShoot)
+                {
+                    GameObject currBullet = (GameObject)Instantiate(bullet, spawnLoc, Quaternion.identity);
+                    currBullet.GetComponent<Rigidbody2D>().velocity = new Vector2(direction.x, direction.y) * bulletSpeed;
 
-                BossBullet bScript = currBullet.GetComponent<BossBullet>();
-                bScript.SetInitDirection(direction);
-                if(curveLeft)
-                {
-                    bScript.SetType(2);
-                }
-                else
-                {
-                    bScript.SetType(3);
+                    BossBullet bScript = currBullet.GetComponent<BossBullet>();
+                    bScript.SetInitDirection(direction);
+                    if (curveLeft)
+                    {
+                        bScript.SetType(2);
+                    }
+                    else
+                    {
+                        bScript.SetType(3);
+                    }
                 }
             }
 
@@ -220,11 +226,15 @@ public class Boss : MonoBehaviour {
                 {
                     spawnLoc = spawnLoc2;
                 }
-                GameObject currBullet = (GameObject)Instantiate(bullet, spawnLoc, Quaternion.identity);
-                currBullet.GetComponent<Rigidbody2D>().velocity = new Vector2(-1, -1) * bulletSpeed;
 
-                BossBullet bScript = currBullet.GetComponent<BossBullet>();
-                bScript.SetType(4);
+                if (canShoot)
+                {
+                    GameObject currBullet = (GameObject)Instantiate(bullet, spawnLoc, Quaternion.identity);
+                    currBullet.GetComponent<Rigidbody2D>().velocity = new Vector2(-1, -1) * bulletSpeed;
+
+                    BossBullet bScript = currBullet.GetComponent<BossBullet>();
+                    bScript.SetType(4);
+                }
             }
 
             yield return new WaitForSeconds(0.2f);
@@ -251,20 +261,23 @@ public class Boss : MonoBehaviour {
             {
                 GameObject currBullet;
 
-                if (j % 2 == 0)
+                if (canShoot)
                 {
-                    currBullet = (GameObject)Instantiate(bullet, spawnLoc1, Quaternion.identity);
-                    currBullet.GetComponent<Rigidbody2D>().velocity = new Vector2(-1, -1) * bulletSpeed;
-                }
-                else
-                {
-                    currBullet = (GameObject)Instantiate(bullet, spawnLoc2, Quaternion.identity);
-                    currBullet.GetComponent<Rigidbody2D>().velocity = new Vector2(1, 1) * bulletSpeed;
-                }
-                
+                    if (j % 2 == 0)
+                    {
+                        currBullet = (GameObject)Instantiate(bullet, spawnLoc1, Quaternion.identity);
+                        currBullet.GetComponent<Rigidbody2D>().velocity = new Vector2(-1, -1) * bulletSpeed;
+                    }
+                    else
+                    {
+                        currBullet = (GameObject)Instantiate(bullet, spawnLoc2, Quaternion.identity);
+                        currBullet.GetComponent<Rigidbody2D>().velocity = new Vector2(1, 1) * bulletSpeed;
+                    }
 
-                BossBullet bScript = currBullet.GetComponent<BossBullet>();
-                bScript.SetType(5);
+
+                    BossBullet bScript = currBullet.GetComponent<BossBullet>();
+                    bScript.SetType(5);
+                }
             }
 
             yield return new WaitForSeconds(0.2f);
@@ -307,8 +320,11 @@ public class Boss : MonoBehaviour {
                     direction = Quaternion.AngleAxis(-2, new Vector3(0, 0, 1)) * direction;
                 }
 
-                GameObject currBullet = (GameObject)Instantiate(bullet, spawnLoc, Quaternion.identity);
-                currBullet.GetComponent<Rigidbody2D>().velocity = new Vector2(direction.x, direction.y) * bulletSpeed;
+                if (canShoot)
+                {
+                    GameObject currBullet = (GameObject)Instantiate(bullet, spawnLoc, Quaternion.identity);
+                    currBullet.GetComponent<Rigidbody2D>().velocity = new Vector2(direction.x, direction.y) * bulletSpeed;
+                }
             }
 
             //reset direction for next wave
