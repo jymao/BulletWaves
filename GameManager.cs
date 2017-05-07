@@ -1,497 +1,235 @@
 ﻿using UnityEngine;
 using System.Collections;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour {
 
-    public GameObject boss;
+    private GameObject boss;
     public GameObject player;
-    public GameObject background;
+    
+    public GameObject warningText;
+    public GameObject gameOverMenu;
 
-    public GameObject canvas;
-    public GameObject playerBarFront;
-    public GameObject playerBarBack;
-    public GameObject bossBarFront;
-    public GameObject bossBarBack;
-
-    private Boss bossScript;
     private Player playerScript;
-    private BGScroll scrollScript;
+    private bool playerDead = false; //for boss checking whether to stop attacking
 
-    private Vector3 initBossLoc;
-    private Vector3 initPlayerLoc;
+    private Vector3 initBossLoc = new Vector3(0, 10, 0); //Boss spawn location
 
-    private bool sceneStarted = false;
-    private bool bossAppeared = false;
-    private bool gamePlaying = false;
-    private bool isNormalMode = true;
-    private bool pause = false;
-    private bool bossDead = false;
-    private bool playerDead = false;
+    public bool isNormalMode;
+    private bool gameOver = false;
+    private bool gamePlaying = false; //boss has to be ready before attacking/taking damage
 
     private int score = 0;
-    private float lastShot = 0;
+
+    public int level;
+    private int currentBoss = BOSS_OCULUS;
+
+    //Boss ID
+    private const int BOSS_OCULUS = 0;
+
+    //Prefabs
+    public GameObject oculus;
+
+    //------------------------------------------------------------
 
 	// Use this for initialization
 	void Start () {
-        bossScript = boss.GetComponent<Boss>();
+    
         playerScript = player.GetComponent<Player>();
-        scrollScript = background.GetComponent<BGScroll>();
 
-
-        initPlayerLoc = player.transform.position;
-        initBossLoc = boss.transform.position;
-        boss.transform.position += new Vector3(0, 80, 0);
-
-        playerScript.SetMove(false);
-
-        playerBarFront.GetComponent<MeshRenderer>().enabled = false;
-        bossBarFront.GetComponent<MeshRenderer>().enabled = false;
-        playerBarBack.GetComponent<MeshRenderer>().enabled = false;
-        bossBarBack.GetComponent<MeshRenderer>().enabled = false;
-        canvas.transform.GetChild(0).gameObject.SetActive(false);
-        canvas.transform.GetChild(1).gameObject.SetActive(false);
+        StartCoroutine(BossIntro(BOSS_OCULUS));
 	}
 	
 	// Update is called once per frame
 	void Update () {
-	    
-        //boss descending animation
-        if(boss.transform.position != initBossLoc && sceneStarted)
+
+        if(!gameOver && gamePlaying)
         {
-            boss.transform.position += new Vector3(0, -0.2f, 0);
-
-            if(boss.transform.position.y < initBossLoc.y)
-            {
-                boss.transform.position = initBossLoc;
-            }
+            CheckWinLoss();
         }
-
-        if (boss.transform.position == initBossLoc && !bossAppeared)
-        {
-            bossAppeared = true;
-            //reset to idle animation from game reset, set it to false here to prevent idle anim after dead anim
-            bossScript.ResetIdle(false); 
-
-            if (isNormalMode)
-            {
-                bossScript.decreaseHealth(bossScript.health);
-            }
-            playerScript.decreaseHealth(playerScript.health);
-        }
-
-        //health bar animation
-        if(bossAppeared && !gamePlaying && !bossDead && !playerDead)
-        {
-            playerBarFront.GetComponent<MeshRenderer>().enabled = true;
-            playerBarBack.GetComponent<MeshRenderer>().enabled = true;
-            canvas.transform.GetChild(1).gameObject.SetActive(true);
-
-            if (isNormalMode)
-            {
-                canvas.transform.GetChild(0).gameObject.SetActive(true);
-                bossBarFront.GetComponent<MeshRenderer>().enabled = true;
-                bossBarBack.GetComponent<MeshRenderer>().enabled = true;
-                bossScript.increaseHealth(bossScript.maxHealth / 100);
-            }
-            else
-            {
-                canvas.transform.GetChild(10).gameObject.SetActive(true);
-            }
-
-            playerScript.increaseHealth(playerScript.maxHealth / 100);
-
-            if (bossScript.health == bossScript.maxHealth && playerScript.health == playerScript.maxHealth)
-            {
-                gamePlaying = true;
-                playerScript.SetMove(true);
-                bossScript.SetCanShoot(true);
-            }
-        }
-
-        if(Input.GetKeyDown(KeyCode.P) && gamePlaying)
-        {
-            pause = !pause;
-
-            if(pause)
-            {
-                PauseGame();
-            }
-            else
-            {
-                ResumeGame();
-            }
-        }
-
-        //score update
-        if (!isNormalMode && canvas.transform.GetChild(10).gameObject.activeSelf)
-        {
-            canvas.transform.GetChild(10).gameObject.GetComponent<Text>().text = "Score: " + score;
-        }
-
-        if(playerScript.health == 0 && !bossDead && gamePlaying)
-        {
-            playerDead = true;
-            //game over: loss
-            GameOver(false);
-        }
-        else if(bossScript.health == 0 && !playerDead && gamePlaying)
-        {
-            bossDead = true;
-            //game over: win
-            GameOver(true);
-        }
-
-        //boss attack AI
-        if (!pause && gamePlaying)
-        {
-            if(Time.time - lastShot > 5)
-            {
-                lastShot = Time.time;
-
-                //boss gets harder once half its health is gone
-                if(bossScript.health > bossScript.maxHealth / 2 && isNormalMode)
-                {
-                    int pattern = Random.Range(0, 6);
-                    int lines;
-
-                    switch(pattern)
-                    {
-                        case 0:
-                            //straight pattern
-                            lines = Random.Range(1, 21);
-                            StartCoroutine(bossScript.FireStraight(lines));
-                            break;
-                        case 1:
-                            //curved left
-                            lines = Random.Range(1, 18);
-                            StartCoroutine(bossScript.FireCurved(lines, true));
-                            break;
-                        case 2:
-                            //curved right
-                            lines = Random.Range(1, 18);
-                            StartCoroutine(bossScript.FireCurved(lines, false));
-                            break;
-                        case 3:
-                            //pathY
-                            StartCoroutine(bossScript.FirePathY());
-                            break;
-                        case 4:
-                            //pathX
-                            StartCoroutine(bossScript.FirePathX());
-                            break;
-                        case 5:
-                            //circle
-                            lines = Random.Range(1, 5);
-                            StartCoroutine(bossScript.FireCircle(lines));
-                            break;
-                    }
-                }
-                //boss is low health or is endless mode
-                else if(bossScript.health <= bossScript.maxHealth / 2 || !isNormalMode)
-                {
-                    int pattern = Random.Range(0, 16);
-                    int lines1;
-                    int lines2;
-
-                    switch (pattern)
-                    {
-                        case 0:
-                            //straight pattern
-                            lines1 = Random.Range(1, 21);
-                            StartCoroutine(bossScript.FireStraight(lines1));
-                            break;
-                        case 1:
-                            //curved left
-                            lines1 = Random.Range(1, 18);
-                            StartCoroutine(bossScript.FireCurved(lines1, true));
-                            break;
-                        case 2:
-                            //curved right
-                            lines1 = Random.Range(1, 18);
-                            StartCoroutine(bossScript.FireCurved(lines1, false));
-                            break;
-                        case 3:
-                            //pathY
-                            StartCoroutine(bossScript.FirePathY());
-                            break;
-                        case 4:
-                            //pathX
-                            StartCoroutine(bossScript.FirePathX());
-                            break;
-                        case 5:
-                            //circle
-                            lines1 = Random.Range(1, 5);
-                            StartCoroutine(bossScript.FireCircle(lines1));
-                            break;
-                        case 6:
-                            //straight pattern + curve left
-                            lines1 = Random.Range(1, 21);
-                            lines2 = Random.Range(1, 18);
-                            StartCoroutine(bossScript.FireStraight(lines1));
-                            StartCoroutine(bossScript.FireCurved(lines2, true));
-                            break;
-                        case 7:
-                            //straight + curve right
-                            lines1 = Random.Range(1, 21);
-                            lines2 = Random.Range(1, 18);
-                            StartCoroutine(bossScript.FireStraight(lines1));
-                            StartCoroutine(bossScript.FireCurved(lines2, false));
-                            break;
-                        case 8:
-                            //straight + pathY
-                            lines1 = Random.Range(1, 21);
-                            StartCoroutine(bossScript.FireStraight(lines1));
-                            StartCoroutine(bossScript.FirePathY());
-                            break;
-                        case 9:
-                            //straight + pathX
-                            lines1 = Random.Range(1, 21);
-                            StartCoroutine(bossScript.FireStraight(lines1));
-                            StartCoroutine(bossScript.FirePathX());
-                            break;
-                        case 10:
-                            //curve left + right
-                            lines1 = Random.Range(1, 18);
-                            lines2 = Random.Range(1, 18);
-                            StartCoroutine(bossScript.FireCurved(lines1, true));
-                            StartCoroutine(bossScript.FireCurved(lines2, false));
-                            break;
-                        case 11:
-                            //curve left + pathX
-                            lines1 = Random.Range(1, 18);
-                            StartCoroutine(bossScript.FireCurved(lines1, true));
-                            StartCoroutine(bossScript.FirePathX());
-                            break;
-                        case 12:
-                            //curve right + pathX
-                            lines1 = Random.Range(1, 18);
-                            StartCoroutine(bossScript.FireCurved(lines1, false));
-                            StartCoroutine(bossScript.FirePathX());
-                            break;
-                        case 13:
-                            //curve left + pathY
-                            lines1 = Random.Range(1, 18);
-                            StartCoroutine(bossScript.FireCurved(lines1, true));
-                            StartCoroutine(bossScript.FirePathY());
-                            break;
-                        case 14:
-                            //curve right + pathY
-                            lines1 = Random.Range(1, 18);
-                            StartCoroutine(bossScript.FireCurved(lines1, false));
-                            StartCoroutine(bossScript.FirePathY());
-                            break;
-                        case 15:
-                            //pathX + pathY
-                            StartCoroutine(bossScript.FirePathX());
-                            StartCoroutine(bossScript.FirePathY());
-                            break;
-                    }
-                }
-            }
-        }
+        
 	}
 
-    public void SetIsNormalMode(bool b)
+    public void SetGamePlaying(bool b)
     {
-        isNormalMode = b;
-        canvas.transform.GetChild(2).gameObject.SetActive(false);
-        canvas.transform.GetChild(3).gameObject.SetActive(false);
-        canvas.transform.GetChild(4).gameObject.SetActive(false);
-        sceneStarted = true;
+        gamePlaying = b;
+    }
+
+    public bool GetIsPlayerDead()
+    {
+        return playerDead;
+    }
+
+    public bool GetIsNormalMode()
+    {
+        return isNormalMode;
     }
 
     public void UpdateScore(int amount)
     {
         score += amount;
+        GameObject.Find("Score").GetComponent<Text>().text = "Score: " + score;
     }
 
-    public void PauseGame()
+    //Check for game over
+    private void CheckWinLoss()
     {
-        pause = true;
-        //  pause background
-        scrollScript.Pause(true);
+        int bossHealth = 0;
 
-        //  boss animation
-        bossScript.EnableAnimation(false);
-
-        //  pause player animation
-        playerScript.EnableAnimation(false);
-
-        //  stop player movement
-        playerScript.SetMove(false);
-
-        //stop bullet movement and store their velocities
-        bossScript.SetCanShoot(false);
-
-        foreach(GameObject bossBullet in GameObject.FindGameObjectsWithTag("BossBullet"))
+        switch (currentBoss)
         {
-            bossBullet.GetComponent<BossBullet>().Pause();
+            case BOSS_OCULUS:
+                Oculus oculusScript = boss.GetComponent<Oculus>();
+                bossHealth = oculusScript.GetHealth();
+                break;
+            default:
+                break;
         }
 
-        foreach (GameObject playerBullet in GameObject.FindGameObjectsWithTag("PlayerBullet"))
+        if(bossHealth == 0)
         {
-            playerBullet.GetComponent<PlayerBullet>().Pause();
+            StartCoroutine(GameOver(true));
+            gameOver = true;
+            return;
         }
 
-        //show pause screen
-        canvas.transform.GetChild(5).gameObject.SetActive(true);
-        canvas.transform.GetChild(6).gameObject.SetActive(true);
-        canvas.transform.GetChild(7).gameObject.SetActive(true);
-
+        if(playerScript.GetHealth() == 0)
+        {
+            StartCoroutine(GameOver(false));
+            playerDead = true;
+            gameOver = true;
+            return;
+        }
     }
 
-    public void ResumeGame()
+    //Display game over menu
+    private IEnumerator GameOver(bool win)
     {
-        pause = false;
-        //  resume background
-        scrollScript.Pause(false);
-
-        //  boss animation
-        bossScript.EnableAnimation(true);
-
-        //  resume player animation
-        playerScript.EnableAnimation(true);
-
-        //  allow player movement
-        playerScript.SetMove(true);
-
-        //allow bullet movement and restore their velocities
-        bossScript.SetCanShoot(true);
-
-        foreach (GameObject bossBullet in GameObject.FindGameObjectsWithTag("BossBullet"))
+        if (win)
         {
-            bossBullet.GetComponent<BossBullet>().Resume();
-        }
-
-        foreach (GameObject playerBullet in GameObject.FindGameObjectsWithTag("PlayerBullet"))
-        {
-            playerBullet.GetComponent<PlayerBullet>().Resume();
-        }
-
-        //hide pause screen
-        canvas.transform.GetChild(5).gameObject.SetActive(false);
-        canvas.transform.GetChild(6).gameObject.SetActive(false);
-        canvas.transform.GetChild(7).gameObject.SetActive(false);
-
-    }
-
-    public void GameOver(bool win)
-    {
-        gamePlaying = false;
-        bossScript.SetCanShoot(false);
-        playerScript.SetMove(false);
-        
-        if(win)
-        {
-            canvas.transform.GetChild(11).gameObject.SetActive(true);
+            //wait for death animations before proceeding
+            yield return new WaitForSeconds(6f);
+            gameOverMenu.transform.GetChild(1).gameObject.GetComponent<Text>().text = "Victory";
         }
         else
         {
-            canvas.transform.GetChild(12).gameObject.SetActive(true);
+            //wait for death animations before proceeding
+            yield return new WaitForSeconds(2f);
+            gameOverMenu.transform.GetChild(1).gameObject.GetComponent<Text>().text = "Game Over";
         }
 
-        canvas.transform.GetChild(5).gameObject.SetActive(true);
-        canvas.transform.GetChild(7).gameObject.SetActive(true);
+        gameOverMenu.SetActive(true);
     }
 
-    public void Reset()
+    public void Retry()
     {
-        //turn everything back to game start up state
-        //disable health bar, pause menu, boss
-        //player bar
-        playerBarFront.GetComponent<MeshRenderer>().enabled = false;
-        playerBarBack.GetComponent<MeshRenderer>().enabled = false;
-        canvas.transform.GetChild(1).gameObject.SetActive(false);
+        SceneManager.LoadScene(level);
+    }
 
-        //enemy bar
-        canvas.transform.GetChild(0).gameObject.SetActive(false);
-        bossBarFront.GetComponent<MeshRenderer>().enabled = false;
-        bossBarBack.GetComponent<MeshRenderer>().enabled = false;
+    public void MainMenu()
+    {
+        SceneManager.LoadScene(0);
+    }
 
-        //score
-        canvas.transform.GetChild(10).gameObject.SetActive(false);
-
-        //pause menu
-        canvas.transform.GetChild(5).gameObject.SetActive(false);
-        canvas.transform.GetChild(6).gameObject.SetActive(false);
-        canvas.transform.GetChild(7).gameObject.SetActive(false);
-
-        //game over menu
-        canvas.transform.GetChild(5).gameObject.SetActive(false);
-        canvas.transform.GetChild(7).gameObject.SetActive(false);
-        canvas.transform.GetChild(11).gameObject.SetActive(false);
-        canvas.transform.GetChild(12).gameObject.SetActive(false);
-        
-        //boss position
-        boss.transform.position += new Vector3(0, 80, 0);
-
-        //prevent player movement and firing
-        playerScript.SetMove(false);
-
-        //reset player position
-        player.transform.position = initPlayerLoc;
-
-        //remove any bullets on screen
-        foreach (GameObject bossBullet in GameObject.FindGameObjectsWithTag("BossBullet"))
+    //Played before each boss appearance
+    private IEnumerator BossIntro(int bossId)
+    {
+        if (isNormalMode)
         {
-            Destroy(bossBullet);
+            GameObject bossName = GameObject.Find("BossName");
+            GameObject bossBarBack = GameObject.Find("BossHealth").transform.GetChild(0).gameObject;
+            GameObject bossBarFront = GameObject.Find("BossHealth").transform.GetChild(1).gameObject;
+
+            //Hide from view
+            bossName.GetComponent<CanvasRenderer>().SetAlpha(0);
+            bossBarBack.GetComponent<CanvasRenderer>().SetAlpha(0);
+            bossBarFront.GetComponent<CanvasRenderer>().SetAlpha(0);
         }
 
-        foreach (GameObject playerBullet in GameObject.FindGameObjectsWithTag("PlayerBullet"))
+        yield return new WaitForSeconds(2f); //give boss some time to spawn
+
+        switch(bossId)
         {
-            Destroy(playerBullet);
+            case BOSS_OCULUS:
+                //spawn boss
+                boss = Instantiate(oculus, initBossLoc, Quaternion.identity);
+                //move boss into position
+                StartCoroutine(BossDescent(7));
+
+                if (isNormalMode)
+                {
+                    //update health bar name, show name and health bar, fill health bar animation
+                    GameObject bossName = GameObject.Find("BossName");
+                    bossName.GetComponent<Text>().text = "Oculus";
+                    StartCoroutine(boss.GetComponent<Oculus>().FillHealth());
+                }
+                else
+                {
+                    StartCoroutine(boss.GetComponent<Oculus>().SetIsReady());
+                }
+                break;
+            default:
+                break;
         }
 
-        //show menu
-        canvas.transform.GetChild(2).gameObject.SetActive(true);
-        canvas.transform.GetChild(3).gameObject.SetActive(true);
-        canvas.transform.GetChild(4).gameObject.SetActive(true);
+        //warning text
+        StartCoroutine(WarningFlash());
 
-        //reset any logic bools
-        sceneStarted = false;
-        bossAppeared = false;
-        gamePlaying = false;
-        pause = false;
-        bossDead = false;
-        playerDead = false;
-
-        //  resume background
-        scrollScript.Pause(false);
-
-        //  resume boss animation
-        bossScript.EnableAnimation(true);
-        bossScript.ResetIdle(true);
-
-        //  resume player animation
-        playerScript.EnableAnimation(true);
-
-        //reset health
-        bossScript.increaseHealth(bossScript.maxHealth);
-        playerScript.increaseHealth(playerScript.maxHealth);
-
-        //reset score for endless
-        score = 0;
-
+        currentBoss = bossId;
     }
 
-    public void EnableNormalExplanation()
+    //Display warning text that flashes to the rhythm of a klaxon while the boss appears.
+    private IEnumerator WarningFlash()
     {
-        canvas.transform.GetChild(8).gameObject.SetActive(true);
+        Text t = warningText.GetComponent<Text>();
+
+        //flash three times
+        for (int i = 0; i < 3; i++)
+        {
+            //fade in
+            for (int j = 0; j < 10; j++)
+            {
+                Color c = new Color(t.color.r, t.color.g, t.color.b, t.color.a + 0.1f);
+                t.color = c;
+
+                yield return new WaitForSeconds(0.01f);
+            }
+
+            yield return new WaitForSeconds(1f);
+
+            //fade out
+            for (int j = 0; j < 10; j++)
+            {
+                Color c = new Color(t.color.r, t.color.g, t.color.b, t.color.a - 0.1f);
+                t.color = c;
+
+                yield return new WaitForSeconds(0.01f);
+            }
+        }
     }
 
-    public void DisableNormalExplanation()
+    //Move the boss into position after spawning in.
+    private IEnumerator BossDescent(int moveDist)
     {
-        canvas.transform.GetChild(8).gameObject.SetActive(false);
+        //moveDist * 10 as the boss will move 0.1f each interval
+        for (int i = 0; i < moveDist * 10; i++)
+        {
+            boss.transform.position += new Vector3(0, -0.1f, 0);
+            yield return new WaitForSeconds(0.01f);
+        }
     }
 
-    public void EnableEndlessExplanation()
+    //Determine boss power for player taking damage
+    public int GetBossPower()
     {
-        canvas.transform.GetChild(9).gameObject.SetActive(true);
-    }
-
-    public void DisableEndlessExplanation()
-    {
-        canvas.transform.GetChild(9).gameObject.SetActive(false);
+        switch(currentBoss)
+        {
+            case BOSS_OCULUS:
+                Oculus oculusScript = boss.GetComponent<Oculus>();
+                return oculusScript.power;
+            default:
+                return 0;
+        }
     }
 }

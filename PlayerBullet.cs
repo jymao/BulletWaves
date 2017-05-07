@@ -3,8 +3,6 @@ using System.Collections;
 
 public class PlayerBullet : MonoBehaviour {
 
-    Vector2 storedVelocity;
-
 	// Use this for initialization
 	void Start () {
 	
@@ -18,7 +16,7 @@ public class PlayerBullet : MonoBehaviour {
     //for hitting the boss
     void OnTriggerEnter2D(Collider2D other)
     {
-        if(other.name == "Boss")
+        if(other.tag == "Enemy")
         {
             Destroy(gameObject);
         }
@@ -31,16 +29,5 @@ public class PlayerBullet : MonoBehaviour {
         {
             Destroy(gameObject);
         }
-    }
-
-    public void Pause()
-    {
-        storedVelocity = gameObject.GetComponent<Rigidbody2D>().velocity;
-        gameObject.GetComponent<Rigidbody2D>().velocity = new Vector2(0, 0);
-    }
-
-    public void Resume()
-    {
-        gameObject.GetComponent<Rigidbody2D>().velocity = storedVelocity;
     }
 }
