@@ -2,11 +2,11 @@
 This is a Unity game.
 Only the game scripts are in this repository.
 
-[Play it here!] (https://jymao.github.io/BulletWaves/)
+[Play it here!](https://jymao.github.io/BulletWaves/)
 
 Bullet Waves is a bullet-hell style game. There are two modes: normal is for defeating the boss, and endless is for surviving as long as possible.
 
-####Update 5/6/17
+#### Update 5/6/17
 
 * Redone art
 * Higher resolution
