@@ -13,6 +13,7 @@ public class TitleManager : MonoBehaviour {
 
     private const int NORMAL_MODE = 1;
     private const int ENDLESS_OCULUS = 2;
+    private const int ENDLESS_GOLEM = 3;
 
 	// Use this for initialization
 	void Start () {
@@ -39,6 +40,11 @@ public class TitleManager : MonoBehaviour {
     public void OculusFight()
     {
         SceneManager.LoadScene(ENDLESS_OCULUS);
+    }
+
+    public void GolemFight()
+    {
+        SceneManager.LoadScene(ENDLESS_GOLEM);
     }
 
     public void EndlessCancel()

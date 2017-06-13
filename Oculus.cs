@@ -35,6 +35,8 @@ public class Oculus : MonoBehaviour {
     //attack
     private float lastAttacked = 0;
     private float attackCooldown = 5.7f;
+    private int currAtk = 0; //incremented up to spawnFreq for each attack done and then reset. Used to spawn minions regularly.
+    private int spawnFreq = 4;
 
     //Bounds that boss is allowed to move in
     public float leftBound;
@@ -121,7 +123,7 @@ public class Oculus : MonoBehaviour {
     //Movement
     void FixedUpdate()
     {
-        if (ready && !animate.GetBool("isDead"))
+        if (ready && !animate.GetBool("isDead") && !animate.GetBool("isAttacking"))
         {
             transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, 0.5f);
         }
@@ -198,7 +200,6 @@ public class Oculus : MonoBehaviour {
 
         targetPosition = transform.position; //init target pos
         ready = true;
-
         gm.SetGamePlaying(true);
     }
 
@@ -209,7 +210,6 @@ public class Oculus : MonoBehaviour {
 
         targetPosition = transform.position; //init target pos
         ready = true;
-
         gm.SetGamePlaying(true);
     }
 
@@ -217,7 +217,7 @@ public class Oculus : MonoBehaviour {
     private IEnumerator DamageAnimation()
     {
         SpriteRenderer sprite = GetComponent<SpriteRenderer>();
-        Color original = sprite.color;
+        Color original = new Color(1f, 1f, 1f);
         Color damaged = new Color(1f, 0, 0);
 
         sprite.color = damaged;
@@ -277,7 +277,7 @@ public class Oculus : MonoBehaviour {
         {
             prevColor = new Color(prevColor.r, prevColor.g, prevColor.b, prevColor.a - 0.2f);
             sprite.color = prevColor;
-            yield return new WaitForSeconds(0.3f);
+            yield return new WaitForSeconds(0.2f);
         }
 
         //despawn
@@ -388,8 +388,8 @@ public class Oculus : MonoBehaviour {
 
     private void ChooseAttackPattern()
     {
-        int pattern = Random.Range(0, 6);
-        int lines = Random.Range(5, 11);
+        int pattern = Random.Range(0, 5);
+        int lines = Random.Range(8, 11);
 
         switch(pattern)
         {
@@ -405,28 +405,33 @@ public class Oculus : MonoBehaviour {
             case 2:
                 StartCoroutine(FireCurved(lines, false));
                 break;
-            //spawn minion
-            case 3:
-                GameObject currMinion = (GameObject)Instantiate(minion, transform.position, Quaternion.identity);
-
-                if(hardMode)
-                {
-                    OculusMinion script = currMinion.GetComponent<OculusMinion>();
-                    script.SetAttackLine(20);
-                }
-                break;
             //fire straight plus curve
-            case 4:
+            case 3:
                 StartCoroutine(FireStraight(lines));
                 StartCoroutine(FireCurved(lines, true));
                 break;
             //fire both curves
-            case 5:
+            case 4:
                 StartCoroutine(FireCurved(lines, true));
                 StartCoroutine(FireCurved(lines, false));
                 break;
             default:
                 break;
+        }
+
+        currAtk++;
+        //spawn minion
+        if (currAtk == spawnFreq)
+        {
+            GameObject currMinion = (GameObject)Instantiate(minion, transform.position, Quaternion.identity);
+
+            if (hardMode)
+            {
+                OculusMinion script = currMinion.GetComponent<OculusMinion>();
+                script.SetAttackLine(20);
+            }
+
+            currAtk = 0;
         }
     }
 

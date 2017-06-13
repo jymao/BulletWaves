@@ -11,8 +11,45 @@
     <script>
       var gameInstance = UnityLoader.instantiate("gameContainer", "Build/Build.json", {onProgress: UnityProgress});
     </script>
+    <style>
+      #summary {
+        background-color: rgb(50, 50, 50);
+        position: absolute;
+        top: 44px;
+        bottom: 87px;
+        left: 20px;
+        width: 248px;
+        border: 2px solid rgb(50, 50, 50);
+        border-radius: 8px;
+      }
+
+      #summary h2, #summary h3, #summary p {
+        color: rgb(240,240,240);
+        text-align: center;
+        font-family: 'Lucida Grande', 'Trebuchet MS';
+      }
+    </style>
   </head>
   <body>
+    <!-- Summary -->
+    <div id="summary">
+      <h2>Bullet Waves</h2>
+      <p>
+        A "bullet-hell" shooter with a focus on fighting bosses. Normal mode involves defeating the bosses. In endless mode, the boss's health is removed and damage dealt to the boss increases your score.
+      </p>
+      <br/>
+      <h3>Controls</h3>
+      <p>
+        Movement: WASD or arrow keys
+      </p>
+      <p>
+        Shoot: Spacebar
+      </p>
+      <p>
+        Menus: Mouse
+      </p>
+    </div>
+    <!-- Game Window -->
     <div class="webgl-content">
       <div id="gameContainer" style="width: 960px; height: 600px"></div>
       <div class="footer">

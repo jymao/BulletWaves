@@ -15,6 +15,7 @@ public class GameManager : MonoBehaviour {
     private bool playerDead = false; //for boss checking whether to stop attacking
 
     private Vector3 initBossLoc = new Vector3(0, 10, 0); //Boss spawn location
+    private float initBarPos;
 
     public bool isNormalMode;
     private bool gameOver = false;
@@ -26,10 +27,13 @@ public class GameManager : MonoBehaviour {
     private int currentBoss = BOSS_OCULUS;
 
     //Boss ID
+    private const int MAX_BOSSES = 2;
     private const int BOSS_OCULUS = 0;
+    private const int BOSS_GOLEM = 1;
 
     //Prefabs
     public GameObject oculus;
+    public GameObject golem;
 
     //------------------------------------------------------------
 
@@ -38,11 +42,41 @@ public class GameManager : MonoBehaviour {
     
         playerScript = player.GetComponent<Player>();
 
-        StartCoroutine(BossIntro(BOSS_OCULUS));
+        if(level == 3)
+        {
+            StartCoroutine(BossIntro(BOSS_GOLEM));
+        }
+        else
+        {
+            StartCoroutine(BossIntro(BOSS_OCULUS));
+        }
+
+        if (isNormalMode)
+        {
+            Transform healthBar = GameObject.Find("BossHealth").transform.GetChild(1);
+            initBarPos = healthBar.localPosition.x;
+        }
 	}
 	
 	// Update is called once per frame
 	void Update () {
+
+        //Pause and resume
+        if(Input.GetKeyDown(KeyCode.P) && !gameOver)
+        {
+            if(Time.timeScale == 1)
+            {
+                Time.timeScale = 0;
+                //show pause menu (repurposed gameover menu)
+                gameOverMenu.transform.GetChild(1).gameObject.GetComponent<Text>().text = "Pause";
+                gameOverMenu.SetActive(true);
+            }
+            else
+            {
+                Time.timeScale = 1;
+                gameOverMenu.SetActive(false);
+            }
+        }
 
         if(!gameOver && gamePlaying)
         {
@@ -83,19 +117,36 @@ public class GameManager : MonoBehaviour {
                 Oculus oculusScript = boss.GetComponent<Oculus>();
                 bossHealth = oculusScript.GetHealth();
                 break;
+            case BOSS_GOLEM:
+                Golem golemScript = boss.GetComponent<Golem>();
+                bossHealth = golemScript.GetHealth();
+                break;
             default:
                 break;
         }
 
+        //only happens in normal mode
         if(bossHealth == 0)
         {
-            StartCoroutine(GameOver(true));
-            gameOver = true;
+            gamePlaying = false;
+
+            //last boss defeated, victory
+            if (currentBoss == MAX_BOSSES - 1)
+            {
+                StartCoroutine(GameOver(true));
+                gameOver = true;
+            }
+            //spawn next boss
+            else
+            {
+                StartCoroutine(BossIntro(currentBoss+1));
+            }
             return;
         }
 
         if(playerScript.GetHealth() == 0)
         {
+            gamePlaying = false;
             StartCoroutine(GameOver(false));
             playerDead = true;
             gameOver = true;
@@ -125,11 +176,13 @@ public class GameManager : MonoBehaviour {
     public void Retry()
     {
         SceneManager.LoadScene(level);
+        Time.timeScale = 1; //if player has paused
     }
 
     public void MainMenu()
     {
         SceneManager.LoadScene(0);
+        Time.timeScale = 1; //if player has paused
     }
 
     //Played before each boss appearance
@@ -145,9 +198,13 @@ public class GameManager : MonoBehaviour {
             bossName.GetComponent<CanvasRenderer>().SetAlpha(0);
             bossBarBack.GetComponent<CanvasRenderer>().SetAlpha(0);
             bossBarFront.GetComponent<CanvasRenderer>().SetAlpha(0);
+
+            //reset bar position for second boss on
+            bossBarFront.transform.localPosition = new Vector3(initBarPos, bossBarFront.transform.localPosition.y, bossBarFront.transform.localPosition.z);
+            bossBarFront.transform.localScale = new Vector3(1, 1, 1);
         }
 
-        yield return new WaitForSeconds(2f); //give boss some time to spawn
+        yield return new WaitForSeconds(4f); //give boss some time to spawn
 
         switch(bossId)
         {
@@ -167,6 +224,24 @@ public class GameManager : MonoBehaviour {
                 else
                 {
                     StartCoroutine(boss.GetComponent<Oculus>().SetIsReady());
+                }
+                break;
+            case BOSS_GOLEM:
+                //spawn boss
+                boss = Instantiate(golem, initBossLoc, Quaternion.identity);
+                //move boss into position
+                StartCoroutine(BossDescent(7));
+
+                if (isNormalMode)
+                {
+                    //update health bar name, show name and health bar, fill health bar animation
+                    GameObject bossName = GameObject.Find("BossName");
+                    bossName.GetComponent<Text>().text = "Golden Golem";
+                    StartCoroutine(boss.GetComponent<Golem>().FillHealth());
+                }
+                else
+                {
+                    StartCoroutine(boss.GetComponent<Golem>().SetIsReady());
                 }
                 break;
             default:
@@ -228,6 +303,9 @@ public class GameManager : MonoBehaviour {
             case BOSS_OCULUS:
                 Oculus oculusScript = boss.GetComponent<Oculus>();
                 return oculusScript.power;
+            case BOSS_GOLEM:
+                Golem golemScript = boss.GetComponent<Golem>();
+                return golemScript.power;
             default:
                 return 0;
         }

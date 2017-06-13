@@ -4,7 +4,15 @@ Only the game scripts are in this repository.
 
 [Play it here!](https://jymao.github.io/BulletWaves/)
 
-Bullet Waves is a bullet-hell style game. There are two modes: normal is for defeating the boss, and endless is for surviving as long as possible.
+Bullet Waves is a bullet-hell style game. There are two modes: 
+normal is for defeating the bosses in order, and 
+endless is for surviving as long as possible against a boss.
+
+#### Update 6/12/17
+
+* New boss: Golden Golem
+* Fixed pausing
+* Oculus now spawns minions every 4th attack instead of randomly
 
 #### Update 5/6/17
 
